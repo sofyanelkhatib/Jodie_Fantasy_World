@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <!--
-  ✨ Jodie's Fantasy World — v1.8
+  ✨ Jodie's Fantasy World — v1.9
   A personal magical companion app.
   Changelog:
+    v1.9 — Fixed model name (gemini-2.0-flash was deprecated June 2026;
+           now gemini-2.5-flash). Chat errors now show the real API message.
     v1.8 — API key moved to config.txt (plain file, no code editing, immune
            to Word/Pages smart-quote corruption). Live key status in the Vault.
     v1.7 — Cleaner crest watermark (shield + crossed wands + J monogram).
@@ -499,7 +501,7 @@ async function loadApiKey(){
   keyLoadAttempted = true;
   renderKeyStatus();
 }
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-2.5-flash";
 const CITY = "Irbid", COUNTRY = "Jordan";
 const CREDS = { user: "jodie", pass: "2406", pin: "2406" };
 
@@ -753,9 +755,14 @@ async function sendChat(){
     });
     const data = await res.json();
     t.remove();
+    if(data.error){
+      toast("⚠️ "+(data.error.message || "The API returned an error."));
+      console.error("Gemini API error:", data.error);
+      return;
+    }
     const reply = data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim();
     if(reply){ chatHistory.push({role:"model", text:reply}); DB.set("chat", chatHistory); renderChat(); }
-    else { toast("The owls got lost… try sending again."); console.warn(data); }
+    else { toast("The reply came back empty — try rephrasing, or check the console for details."); console.warn(data); }
   }catch(e){ t.remove(); toast("The Floo network flickered — check the internet connection."); console.error(e); }
 }
 document.getElementById("chatSend").addEventListener("click", sendChat);
