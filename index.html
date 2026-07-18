@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <!--
-  ✨ Jodie's Fantasy World — v1.9
+  ✨ Jodie's Fantasy World — v2.0
   A personal magical companion app.
   Changelog:
+    v2.0 — Key sent via x-goog-api-key header: required for Google's new
+           AQ.-format API keys (the ?key= URL method rejects them).
     v1.9 — Fixed model name (gemini-2.0-flash was deprecated June 2026;
            now gemini-2.5-flash). Chat errors now show the real API message.
     v1.8 — API key moved to config.txt (plain file, no code editing, immune
@@ -748,8 +750,8 @@ async function sendChat(){
   const t=document.createElement("div"); t.className="typing"; t.innerHTML="Someone is scribbling a reply <i>✦</i><i>✦</i><i>✦</i>"; log.appendChild(t); log.scrollTop=log.scrollHeight;
   try{
     const contents = chatHistory.slice(-40).map(m=>({ role: m.role==="user"?"user":"model", parts:[{text:m.text}] }));
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,{
-      method:"POST", headers:{"Content-Type":"application/json"},
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,{
+      method:"POST", headers:{"Content-Type":"application/json","x-goog-api-key":GEMINI_API_KEY},
       body: JSON.stringify({ systemInstruction:{parts:[{text:SYSTEM_PROMPT}]}, contents,
         generationConfig:{ temperature:0.95, maxOutputTokens:1200 } })
     });
