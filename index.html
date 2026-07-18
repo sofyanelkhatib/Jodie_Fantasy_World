@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <!--
-  ✨ Jodie's Fantasy World — v2.0
+  ✨ Jodie's Fantasy World — v2.1
   A personal magical companion app.
   Changelog:
+    v2.1 — Switched AI provider from Gemini to Groq (llama-3.3-70b).
     v2.0 — Key sent via x-goog-api-key header: required for Google's new
            AQ.-format API keys (the ?key= URL method rejects them).
     v1.9 — Fixed model name (gemini-2.0-flash was deprecated June 2026;
@@ -503,7 +504,8 @@ async function loadApiKey(){
   keyLoadAttempted = true;
   renderKeyStatus();
 }
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const CITY = "Irbid", COUNTRY = "Jordan";
 const CREDS = { user: "jodie", pass: "2406", pin: "2406" };
 
@@ -749,22 +751,24 @@ async function sendChat(){
   const log=document.getElementById("chatLog");
   const t=document.createElement("div"); t.className="typing"; t.innerHTML="Someone is scribbling a reply <i>✦</i><i>✦</i><i>✦</i>"; log.appendChild(t); log.scrollTop=log.scrollHeight;
   try{
-    const contents = chatHistory.slice(-40).map(m=>({ role: m.role==="user"?"user":"model", parts:[{text:m.text}] }));
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,{
-      method:"POST", headers:{"Content-Type":"application/json","x-goog-api-key":GEMINI_API_KEY},
-      body: JSON.stringify({ systemInstruction:{parts:[{text:SYSTEM_PROMPT}]}, contents,
-        generationConfig:{ temperature:0.95, maxOutputTokens:1200 } })
+    const messages = [
+      { role:"system", content: SYSTEM_PROMPT },
+      ...chatHistory.slice(-40).map(m=>({ role: m.role==="user"?"user":"assistant", content: m.text }))
+    ];
+    const res = await fetch(GROQ_API_URL, {
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+GEMINI_API_KEY},
+      body: JSON.stringify({ model: GROQ_MODEL, messages, temperature: 0.95, max_tokens: 1200 })
     });
     const data = await res.json();
     t.remove();
     if(data.error){
-      toast("⚠️ "+(data.error.message || "The API returned an error."));
-      console.error("Gemini API error:", data.error);
-      return;
+      toast("⚠️ "+(data.error.message || "API error — check the Vault for key status."));
+      console.error("Groq error:", data.error); return;
     }
-    const reply = data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim();
+    const reply = data?.choices?.[0]?.message?.content?.trim();
     if(reply){ chatHistory.push({role:"model", text:reply}); DB.set("chat", chatHistory); renderChat(); }
-    else { toast("The reply came back empty — try rephrasing, or check the console for details."); console.warn(data); }
+    else { toast("Empty reply — try again."); console.warn(data); }
   }catch(e){ t.remove(); toast("The Floo network flickered — check the internet connection."); console.error(e); }
 }
 document.getElementById("chatSend").addEventListener("click", sendChat);
@@ -1296,10 +1300,10 @@ function renderKeyStatus(){
   if(!keyLoadAttempted){
     box.innerHTML = '<span style="color:var(--parchment-dim)">Checking for the key…</span>';
   } else if(keyIsMissing()){
-    box.innerHTML = '<span style="color:#ff9d9d">⚠️ No key detected yet.</span> Open <code>config.txt</code> (a plain text file, in the same folder as index.html) in Notepad / TextEdit, delete the placeholder text, and paste your key in its place — nothing else in that file.';
+    box.innerHTML = '<span style="color:#ff9d9d">⚠️ No key detected.</span> Open <code>config.txt</code>, delete the placeholder, paste your Groq key (starts with <b>gsk_</b>), save.';
   } else {
-    const shown = GEMINI_API_KEY.slice(0,6) + "•••" + GEMINI_API_KEY.slice(-4);
-    box.innerHTML = '<span style="color:#8fe0a8">✅ Key detected:</span> ' + shown + ' — the Common Room should be able to speak.';
+    const shown = GEMINI_API_KEY.slice(0,6)+"•••"+GEMINI_API_KEY.slice(-4);
+    box.innerHTML = '<span style="color:#8fe0a8">✅ Key detected:</span> '+shown+' — Common Room ready.';
   }
 }
 
